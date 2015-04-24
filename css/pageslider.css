@@ -1,36 +1,70 @@
-#container {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-}
+/* Notes:
+ * - History management is currently done using window.location.hash.  This could easily be changed to use Push State instead.
+ * - jQuery dependency for now. This could also be easily removed.
+ */
 
-.page {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    -webkit-transform: translate3d(0, 0, 1px);
-    transform: translate3d(0, 0, 0);
-}
+function PageSlider(container) {
 
-.page.left {
-    -webkit-transform: translate3d(-100%, 0, 1px);
-    transform: translate3d(-100%, 0, 0);
-}
+    var container = container,
+        currentPage,
+        stateHistory = [];
 
-.page.center {
-    -webkit-transform: translate3d(0, 0, 1px);
-    transform: translate3d(0, 0, 0);
-}
+    // Use this function if you want PageSlider to automatically determine the sliding direction based on the state history
+    this.slidePage = function(page, callback) {
 
-.page.right {
-    -webkit-transform: translate3d(100%, 0, 1px);
-    transform: translate3d(100%, 0, 0);
-}
+        var l = stateHistory.length,
+            state = window.location.hash;
 
-.page.transition {
-    -webkit-transition-duration: .25s;
-    transition-duration: .25s;
+        if (l === 0) {
+            stateHistory.push(state);
+            this.slidePageFrom(page);
+            return;
+        }
+        if (state === stateHistory[l-2]) {
+            stateHistory.pop();
+            this.slidePageFrom(page, 'left', callback);
+        } else {
+            stateHistory.push(state);
+            this.slidePageFrom(page, 'right', callback);
+        }
+
+    };
+
+    // Use this function directly if you want to control the sliding direction outside PageSlider
+    this.slidePageFrom = function(page, from, callback) {
+
+        container.append(page);
+
+        if (!currentPage || !from) {
+            page.attr("class", "page center");
+            currentPage = page;
+            return;
+        }
+
+        currentPage.one('webkitTransitionEnd', function(e) {
+            $(e.target).remove();
+			
+			if (typeof(callback) === "function") {
+				callback();
+			}
+        });
+
+		// Position the page at the starting position of the animation
+		page.attr("class", "page " + from);
+
+		// delayed loading allows for rendereing of DOM tree
+		// most important for Android
+		setTimeout(function() {
+
+			// Force reflow. More information here: http://www.phpied.com/rendering-repaint-reflowrelayout-restyle/
+			container[0].offsetWidth;
+
+			// Position the new page and the current page at the ending position of their animation 
+			// with a transition class indicating the duration of the animation
+			page.attr("class", "page transition center");
+			currentPage.attr("class", "page transition " + (from === "left" ? "right" : "left"));
+			currentPage = page;
+		}, 150);
+    };
+
 }
